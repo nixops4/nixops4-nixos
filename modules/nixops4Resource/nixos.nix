@@ -46,6 +46,15 @@ in
       type = types.str;
       default = "";
     };
+    copy.substituteOnDestination = mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Whether to try substitutes on the destination store when copying.
+        This may be faster if the link between the local and remote machines is
+        slower than the link between the remote machine and its substituters.
+      '';
+    };
     sudo.enable = mkOption {
       type = types.bool;
       default = config.ssh.user != "root";
@@ -84,7 +93,7 @@ in
               ${config.ssh.host} ${config.ssh.hostPublicKey}
             ''
           } "${lib.strings.escapeShellArg "${config.ssh.opts}"}
-          nix copy --to "ssh-ng://$0" "$1" --no-check-sigs --extra-experimental-features nix-command
+          nix copy --to "ssh-ng://$0" "$1" --no-check-sigs --extra-experimental-features nix-command${lib.optionalString config.copy.substituteOnDestination " --substitute-on-destination"}
           ssh $NIX_SSHOPTS "$0" "${lib.optionalString config.sudo.enable "sudo "}$1/bin/apply switch"
         ''
         (lib.optionalString (config.ssh.user != null) "${config.ssh.user}@" + config.ssh.host)
