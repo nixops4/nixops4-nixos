@@ -18,7 +18,6 @@ testers.runNixOSTest (
     targetNetworkJSON = hostPkgs.writeText "target-network.json" (
       builtins.toJSON config.nodes.target.system.build.networkConfig
     );
-
   in
   {
     name = "nixops4-nixos";
@@ -71,35 +70,34 @@ testers.runNixOSTest (
           # acl needs attr.tar.gz (FOD), find what NixOS option produces the derivation
           # that needs openssh (e.g., system.checks for check-sshd-config), and add
           # its inputDerivation.
-          system.extraDependencies =
-            [
-              "${inputs.flake-parts}"
-              "${inputs.flake-parts.inputs.nixpkgs-lib}"
-              "${inputs.nixops4}"
-              "${inputs.nixops4-nixos}"
-              "${inputs.nixpkgs}"
-              pkgs.stdenv
-              pkgs.stdenvNoCC
-              pkgs.hello
-              # Core system build outputs - these provide build inputs for the
-              # deployment's NixOS system, which will have different hashes but
-              # similar build requirements.
-              nodes.target.system.build.toplevel.inputDerivation
-              nodes.target.system.build.etc.inputDerivation
-              nodes.target.system.path.inputDerivation
-              nodes.target.system.build.bootStage1.inputDerivation
-              nodes.target.system.build.bootStage2.inputDerivation
-            ]
-            # /etc file sources - deployment may generate different config files
-            ++ lib.concatLists (
-              lib.mapAttrsToList (
-                k: v: if v ? source.inputDerivation then [ v.source.inputDerivation ] else [ ]
-              ) nodes.target.environment.etc
-            )
-            # System checks (e.g., check-sshd-config) - these have build-time deps
-            # like openssh that must be available when the deployment builds its
-            # own checks with different configurations
-            ++ map (check: check.inputDerivation) nodes.target.system.checks;
+          system.extraDependencies = [
+            "${inputs.flake-parts}"
+            "${inputs.flake-parts.inputs.nixpkgs-lib}"
+            "${inputs.nixops4}"
+            "${inputs.nixops4-nixos}"
+            "${inputs.nixpkgs}"
+            pkgs.stdenv
+            pkgs.stdenvNoCC
+            pkgs.hello
+            # Core system build outputs - these provide build inputs for the
+            # deployment's NixOS system, which will have different hashes but
+            # similar build requirements.
+            nodes.target.system.build.toplevel.inputDerivation
+            nodes.target.system.build.etc.inputDerivation
+            nodes.target.system.path.inputDerivation
+            nodes.target.system.build.bootStage1.inputDerivation
+            nodes.target.system.build.bootStage2.inputDerivation
+          ]
+          # /etc file sources - deployment may generate different config files
+          ++ lib.concatLists (
+            lib.mapAttrsToList (
+              k: v: if v ? source.inputDerivation then [ v.source.inputDerivation ] else [ ]
+            ) nodes.target.environment.etc
+          )
+          # System checks (e.g., check-sshd-config) - these have build-time deps
+          # like openssh that must be available when the deployment builds its
+          # own checks with different configurations
+          ++ map (check: check.inputDerivation) nodes.target.system.checks;
         };
       target =
         { pkgs, modulesPath, ... }:
@@ -115,7 +113,16 @@ testers.runNixOSTest (
           # Match the deployment's module imports to get the same dependencies
           imports = [
             (modulesPath + "/profiles/qemu-guest.nix")
+            # target-vm.nix imports qemu-vm.nix for boot/filesystem config needed by
+            # manual deployments. We must match it here so extraDependencies covers
+            # its build inputs (kmod, etc.). NixOS test framework also imports qemu-vm.nix,
+            # so this is a no-op for the test VM itself, but ensures nodes.target's
+            # toplevel.inputDerivation includes the right dependencies.
+            (modulesPath + "/virtualisation/qemu-vm.nix")
           ];
+
+          # Must match target-vm.nix to get the same boot/kernel derivation hashes
+          virtualisation.useBootLoader = true;
 
           services.openssh.enable = true;
 
@@ -203,7 +210,6 @@ testers.runNixOSTest (
           (
             cd work
             set -x
-            # "test" is the name of the deployment
             nixops4 apply test --show-trace
           )
         """)

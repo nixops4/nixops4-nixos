@@ -1,3 +1,11 @@
+# NixOps4 deployment configuration.
+#
+# This module defines the deployment resources and is loaded by:
+# - nixops4Deployments.default (for manual deployment via `nixops4 apply default`)
+# - nixops4Deployments.test (for integration testing, with deployment-for-test.nix)
+#
+# The NixOS configuration (resources.nixos.nixos.module) imports target-vm.nix,
+# which provides the base system configuration.
 {
   config,
   inputs,
@@ -7,7 +15,6 @@
   ...
 }:
 let
-  pubKeysFile = ./deployer.pub;
   inherit (lib) mkOption types;
 in
 {
@@ -41,48 +48,15 @@ in
 
       nixpkgs = inputs.nixpkgs;
       nixos.module =
-        { pkgs, modulesPath, ... }:
+        { ... }:
         {
-          imports = [
-            # begin hardware config
-            (modulesPath + "/profiles/qemu-guest.nix")
-            (modulesPath + "/../lib/testing/nixos-test-base.nix")
-            {
-              # See test/default/nixosTest.nix
-              system.switch.enable = true;
-              # Not used; save a large copy operation
-              nix.channel.enable = false;
-              nix.registry = lib.mkForce { };
-            }
-            # end hardware config
-          ];
+          imports = [ ./target-vm.nix ];
 
-          nixpkgs.hostPlatform = "x86_64-linux";
-
-          services.openssh.enable = true;
-          services.openssh.settings.PermitRootLogin = "yes";
-          networking.firewall.allowedTCPPorts = [ 22 ];
-
-          users.users.root.openssh.authorizedKeys.keyFiles = [ pubKeysFile ];
-          users.users.root.initialPassword = "asdf";
-          users.users.bossmang.openssh.authorizedKeys.keyFiles = [ pubKeysFile ];
-          users.users.bossmang.isNormalUser = true;
-          users.users.bossmang.group = "bossmang";
-          users.users.bossmang.extraGroups = [ "wheel" ];
-          users.groups.bossmang = { };
-
-          security.sudo.execWheelOnly = true; # hardening
-          security.sudo.wheelNeedsPassword = false; # can not be entered through NixOps
-
-          # end hardware config
-
+          # Deployment-specific: greeting from the hello resource
           environment.etc."greeting".text = config.resources.hello.outputs.stdout;
-          environment.systemPackages = [
-            pkgs.hello
-          ];
         };
 
-      ssh.opts = "-o Port=${toString config.hostPort}";
+      ssh.opts = "-i ./deployer-key -o Port=${toString config.hostPort}";
       ssh.host = config.hostName;
       ssh.hostPublicKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAiszi43aOWWV7voNgQ1Ifa7LGKwGJfOuiLM1n42h2Y8";
     };
