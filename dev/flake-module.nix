@@ -27,9 +27,6 @@
           ${config.pre-commit.settings.shellHook}
         '';
       };
-      packages.nixops4-flake-in-a-bottle = pkgs.callPackage ../test/nixops4-flake-in-a-bottle/stuff.nix {
-        nixops4Flake = inputs.nixops4;
-      };
       pre-commit.settings.hooks.nixfmt-rfc-style.enable = true;
     };
 }

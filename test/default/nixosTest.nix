@@ -39,6 +39,7 @@ testers.runNixOSTest (
         {
           environment.systemPackages = [
             inputs.nixops4.packages.${vmSystem}.default
+            pkgs.git
           ];
           # Memory use is expected to be dominated by the NixOS evaluation, which
           # happens on the deployer.
@@ -50,6 +51,33 @@ testers.runNixOSTest (
             hashed-mirrors = null;
             connect-timeout = 1;
           };
+          # The VM has no network access, so we pre-populate its Nix store with
+          # everything needed to build the deployment's NixOS configuration.
+          #
+          # WHAT: We add `x.inputDerivation` for derivations similar to what the
+          # deployment will build. The `inputDerivation` attribute realizes all
+          # build inputs of a derivation, making them available in the store.
+          #
+          # WHY: The deployment's NixOS config differs from `nodes.target` (different
+          # users, SSH settings, etc.), producing different derivation hashes. When
+          # the VM builds these different derivations, it needs their build inputs.
+          # Without network access, these must be pre-populated.
+          #
+          # HOW IT WORKS:
+          # - `inputDerivation` is NOT transitive - it only provides immediate build inputs
+          # - We add inputDerivation for high-level derivations (toplevel, checks, etc.)
+          # - This brings in their build dependencies (compilers, libraries, tools)
+          # - The deployment can then build its slightly-different derivations
+          #
+          # DEBUGGING: If the test fails trying to download sources (FODs), trace upward
+          # from the FOD to find the highest-level derivation that needs building.
+          # Then add that derivation's inputDerivation here. Use `nix log` on the
+          # failed test to see what derivations the VM tried to build.
+          #
+          # Example: If openssh fails to build because cmake needs libarchive needs
+          # acl needs attr.tar.gz (FOD), find what NixOS option produces the derivation
+          # that needs openssh (e.g., system.checks for check-sshd-config), and add
+          # its inputDerivation.
           system.extraDependencies =
             [
               "${inputs.flake-parts}"
@@ -60,33 +88,47 @@ testers.runNixOSTest (
               pkgs.stdenv
               pkgs.stdenvNoCC
               pkgs.hello
-              # Some derivations will be different compared to target's initial state,
-              # so we'll need to be able to build something similar.
-              # Generally the derivation inputs aren't that different, so we use the
-              # initial state of the target as a base.
+              # Core system build outputs - these provide build inputs for the
+              # deployment's NixOS system, which will have different hashes but
+              # similar build requirements.
               nodes.target.system.build.toplevel.inputDerivation
               nodes.target.system.build.etc.inputDerivation
               nodes.target.system.path.inputDerivation
               nodes.target.system.build.bootStage1.inputDerivation
               nodes.target.system.build.bootStage2.inputDerivation
             ]
+            # /etc file sources - deployment may generate different config files
             ++ lib.concatLists (
               lib.mapAttrsToList (
                 k: v: if v ? source.inputDerivation then [ v.source.inputDerivation ] else [ ]
               ) nodes.target.environment.etc
-            );
+            )
+            # System checks (e.g., check-sshd-config) - these have build-time deps
+            # like openssh that must be available when the deployment builds its
+            # own checks with different configurations
+            ++ map (check: check.inputDerivation) nodes.target.system.checks;
         };
-      target = {
-        # Test framework disables switching by default. That might be ok by itself,
-        # but we also use this config for getting the dependencies in
-        # `deployer.system.extraDependencies`.
-        system.switch.enable = true;
-        # Not used; save a large copy operation
-        nix.channel.enable = false;
-        nix.registry = lib.mkForce { };
+      target =
+        { pkgs, modulesPath, ... }:
+        {
+          # Test framework disables switching by default. That might be ok by itself,
+          # but we also use this config for getting the dependencies in
+          # `deployer.system.extraDependencies`.
+          system.switch.enable = true;
+          # Not used; save a large copy operation
+          nix.channel.enable = false;
+          nix.registry = lib.mkForce { };
 
-        services.openssh.enable = true;
-      };
+          # Match the deployment's module imports to get the same dependencies
+          imports = [
+            (modulesPath + "/profiles/qemu-guest.nix")
+          ];
+
+          services.openssh.enable = true;
+
+          # Match the deployment's packages
+          environment.systemPackages = [ pkgs.hello ];
+        };
     };
 
     testScript = ''
@@ -101,6 +143,10 @@ testers.runNixOSTest (
       with subtest("unpacking"):
         deployer.succeed("""
           cp -r --no-preserve=mode ${src} work
+          cd work
+          # test/flake-file.nix is not a flake; copy it to flake.nix for use in the test
+          cp test/flake-file.nix test/flake.nix
+          git init && git add -A
         """)
 
       with subtest("configure the deployment"):
@@ -143,21 +189,29 @@ testers.runNixOSTest (
         deployer.succeed("""
           (
             cd work
+            # Add dynamically generated files to git so they're included in the store path
+            git add -A
+            # Commit first so the repo hash is stable before locking
+            git -c user.email=test@test -c user.name=Test commit -m 'generated files'
+            cd test
             set -x
             nix flake lock --extra-experimental-features 'flakes nix-command' \
               --offline -v \
               --override-input flake-parts ${inputs.flake-parts} \
               --override-input nixops4 ${nixops4-flake-in-a-bottle} \
               --override-input nixpkgs ${inputs.nixpkgs} \
-              --override-input git-hooks-nix ${inputs.git-hooks-nix} \
               ;
+            # Commit the lock file so the git tree is clean for nixops4 apply
+            cd ..
+            git add -A
+            git -c user.email=test@test -c user.name=Test commit -m 'lock file updates'
           )
         """)
 
       with subtest("nixops4 apply"):
         deployer.succeed("""
           (
-            cd work
+            cd work/test
             set -x
             # "test" is the name of the deployment
             nixops4 apply test --show-trace
@@ -188,7 +242,7 @@ testers.runNixOSTest (
         deployer.succeed(f"""cat > work/example/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
         deployer.succeed("""
           (
-            cd work
+            cd work/test
             set -x
             nixops4 apply test --show-trace
           )
@@ -206,7 +260,7 @@ testers.runNixOSTest (
           with subtest("nixops4 apply"):
             deployer.succeed("""
               (
-                cd work
+                cd work/test
                 set -x
                 nixops4 apply test --show-trace
               )
@@ -272,7 +326,7 @@ testers.runNixOSTest (
         with subtest("check error propagation through resource and nixops4"):
           deployer.succeed("""
             (
-              cd work
+              cd work/test
               set -x
               (
                 set +e
@@ -308,7 +362,7 @@ testers.runNixOSTest (
         with subtest("can deploy with ambient user setting"):
           deployer.succeed("""
             (
-              cd work
+              cd work/test
               set -x
               nixops4 apply test --show-trace
             )

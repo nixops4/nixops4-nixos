@@ -4,15 +4,10 @@
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixops4-nixos.follows = ""; # self
-
-    # Dev dependencies
-    # These need to be in the main flake for now, because we can't easily pre-fetch the private flake-compat dependency in flake-parts.
-    # TODO: We could wait for https://github.com/NixOS/nix/issues/7730 or
-    #       1. put a ?narHash= in flake-parts or vendor flake-compat there
-    #       2. partitions.dev.extraInputsFlake = ./dev;
-    nixpkgs.follows = "nixops4/nixpkgs";
-    nixops4.url = "github:nixops4/nixops4";
-    git-hooks-nix.url = "github:cachix/git-hooks.nix";
+    /** Provides `bash` and `ssh` client for the deployment script. */
+    # Keep in sync with dev/flake.nix nixpkgs.
+    # https://github.com/NixOS/nix/issues/7730#issuecomment-3663046220
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
   outputs =
@@ -31,6 +26,7 @@
             "aarch64-darwin"
             "x86_64-darwin"
           ];
+          partitions.dev.extraInputsFlake = ./dev;
           partitions.dev.module = {
             imports = [
               ./dev/flake-module.nix
