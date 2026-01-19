@@ -8,7 +8,6 @@
 #   nix run .#vm
 {
   lib,
-  pkgs,
   modulesPath,
   ...
 }:
@@ -47,8 +46,6 @@
 
   security.sudo.execWheelOnly = true;
   security.sudo.wheelNeedsPassword = false;
-
-  environment.systemPackages = [ pkgs.hello ];
 
   # VM-specific settings for interactive use
   virtualisation.forwardPorts = [

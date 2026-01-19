@@ -125,9 +125,6 @@ testers.runNixOSTest (
           virtualisation.useBootLoader = true;
 
           services.openssh.enable = true;
-
-          # Match the deployment's packages
-          environment.systemPackages = [ pkgs.hello ];
         };
     };
 
@@ -205,6 +202,9 @@ testers.runNixOSTest (
           )
         """)
 
+      with subtest("hello is not installed before deployment"):
+        target.fail("hello")
+
       with subtest("nixops4 apply"):
         deployer.succeed("""
           (
@@ -214,7 +214,7 @@ testers.runNixOSTest (
           )
         """)
 
-      with subtest("check the deployment"):
+      with subtest("hello is installed after deployment"):
         target.succeed("""
           (
             set -x

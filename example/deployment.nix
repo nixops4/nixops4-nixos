@@ -48,12 +48,14 @@ in
 
       nixpkgs = inputs.nixpkgs;
       nixos.module =
-        { ... }:
+        { pkgs, ... }:
         {
           imports = [ ./target-vm.nix ];
 
-          # Deployment-specific: greeting from the hello resource
+          # Deployment-specific configuration (not in target-vm.nix so the
+          # integration test can verify these are installed by the deployment)
           environment.etc."greeting".text = config.resources.hello.outputs.stdout;
+          environment.systemPackages = [ pkgs.hello ];
         };
 
       ssh.opts = "-i ./deployer-key -o Port=${toString config.hostPort}";
