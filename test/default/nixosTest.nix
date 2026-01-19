@@ -15,13 +15,6 @@ testers.runNixOSTest (
   let
     vmSystem = config.node.pkgs.hostPlatform.system;
 
-    # TODO turn example directory into a flake, and refer to the whole repo only
-    #      as a flake input
-    src = lib.fileset.toSource {
-      fileset = ../..;
-      root = ../..;
-    };
-
     targetNetworkJSON = hostPkgs.writeText "target-network.json" (
       builtins.toJSON config.nodes.target.system.build.networkConfig
     );
@@ -140,12 +133,12 @@ testers.runNixOSTest (
       # target.wait_for_unit("network-online.target")
       # deployer.wait_for_unit("network-online.target")
 
-      with subtest("unpacking"):
+      with subtest("nix flake init"):
         deployer.succeed("""
-          cp -r --no-preserve=mode ${src} work
+          mkdir work
           cd work
-          # test/flake-file.nix is not a flake; copy it to flake.nix for use in the test
-          cp test/flake-file.nix test/flake.nix
+          nix flake init --extra-experimental-features 'flakes nix-command' \
+            -t ${inputs.nixops4-nixos}#default
           git init && git add -A
         """)
 
@@ -157,7 +150,7 @@ testers.runNixOSTest (
             set -x
             mkdir -p ~/.ssh
             ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
-            mv /root/target-network.json example/target-network.json
+            mv /root/target-network.json target-network.json
           )
         """)
         deployer_public_key = deployer.succeed("cat ~/.ssh/id_rsa.pub").strip()
@@ -174,17 +167,15 @@ testers.runNixOSTest (
             }};
           }}
           """
-        deployer.succeed(f"""cat > work/example/generated.nix <<"_EOF_"\n{generated_config}\n_EOF_\n""")
+        deployer.succeed(f"""cat > work/generated.nix <<"_EOF_"\n{generated_config}\n_EOF_\n""")
         deployer.succeed("""
-          cp ~/.ssh/id_rsa.pub work/example/deployer.pub
-          cat -n work/example/generated.nix 1>&2;
-          echo {} > work/example/extra-deployment-config.nix
+          cp ~/.ssh/id_rsa.pub work/deployer.pub
+          cat -n work/generated.nix 1>&2;
+          echo {} > work/extra-deployment-config.nix
           # Fail early if we made a syntax mistake in generated.nix. (following commands may be slow)
-          nix-instantiate work/example/generated.nix --eval --parse >/dev/null
+          nix-instantiate work/generated.nix --eval --parse >/dev/null
         """)
 
-      # This is slow, but could be optimized in Nix.
-      # TODO: when not slow, do right after unpacking work/
       with subtest("override the lock"):
         deployer.succeed("""
           (
@@ -193,16 +184,15 @@ testers.runNixOSTest (
             git add -A
             # Commit first so the repo hash is stable before locking
             git -c user.email=test@test -c user.name=Test commit -m 'generated files'
-            cd test
             set -x
             nix flake lock --extra-experimental-features 'flakes nix-command' \
               --offline -v \
               --override-input flake-parts ${inputs.flake-parts} \
+              --override-input nixops4-nixos ${inputs.nixops4-nixos} \
               --override-input nixops4 ${nixops4-flake-in-a-bottle} \
               --override-input nixpkgs ${inputs.nixpkgs} \
               ;
             # Commit the lock file so the git tree is clean for nixops4 apply
-            cd ..
             git add -A
             git -c user.email=test@test -c user.name=Test commit -m 'lock file updates'
           )
@@ -211,7 +201,7 @@ testers.runNixOSTest (
       with subtest("nixops4 apply"):
         deployer.succeed("""
           (
-            cd work/test
+            cd work
             set -x
             # "test" is the name of the deployment
             nixops4 apply test --show-trace
@@ -239,10 +229,10 @@ testers.runNixOSTest (
             resources.nixos.ssh.user = "bossmang";
           }
           """
-        deployer.succeed(f"""cat > work/example/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
+        deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
         deployer.succeed("""
           (
-            cd work/test
+            cd work
             set -x
             nixops4 apply test --show-trace
           )
@@ -256,11 +246,11 @@ testers.runNixOSTest (
                 resources.nixos.nixos.module.services.openssh.settings.PermitRootLogin = lib.mkForce "no";
               }
               """
-            deployer.succeed(f"""cat > work/example/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
+            deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
           with subtest("nixops4 apply"):
             deployer.succeed("""
               (
-                cd work/test
+                cd work
                 set -x
                 nixops4 apply test --show-trace
               )
@@ -326,7 +316,7 @@ testers.runNixOSTest (
         with subtest("check error propagation through resource and nixops4"):
           deployer.succeed("""
             (
-              cd work/test
+              cd work
               set -x
               (
                 set +e
@@ -357,12 +347,12 @@ testers.runNixOSTest (
               resources.nixos.ssh.user = null;
             }
             """
-          deployer.succeed(f"""cat > work/example/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
+          deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
 
         with subtest("can deploy with ambient user setting"):
           deployer.succeed("""
             (
-              cd work/test
+              cd work
               set -x
               nixops4 apply test --show-trace
             )

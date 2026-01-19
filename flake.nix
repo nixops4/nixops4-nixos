@@ -50,5 +50,10 @@
         */
         herculesCI
         ;
+
+      templates.default = {
+        path = ./example;
+        description = "NixOps4-NixOS deployment example";
+      };
     };
 }
