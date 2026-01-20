@@ -12,7 +12,7 @@
 
   imports = [
     # The test generates this file with runtime-discovered values
-    ./generated.nix
+    ./deployment-test-generated.nix
   ];
 
   resources.nixos.nixos.module =

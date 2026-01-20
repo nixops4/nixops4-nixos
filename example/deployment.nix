@@ -2,9 +2,9 @@
 #
 # This module defines the deployment resources and is loaded by:
 # - nixops4Deployments.default (for manual deployment via `nixops4 apply default`)
-# - nixops4Deployments.test (for integration testing, with deployment-for-test.nix)
+# - nixops4Deployments.test (for integration testing, with deployment-test.nix)
 #
-# The NixOS configuration (resources.nixos.nixos.module) imports target-vm.nix,
+# The NixOS configuration (resources.nixos.nixos.module) imports nixos-base.nix,
 # which provides the base system configuration.
 {
   config,
@@ -50,9 +50,9 @@ in
       nixos.module =
         { pkgs, ... }:
         {
-          imports = [ ./target-vm.nix ];
+          imports = [ ./nixos-base.nix ];
 
-          # Deployment-specific configuration (not in target-vm.nix so the
+          # Deployment-specific configuration (not in nixos-base.nix so the
           # integration test can verify these are installed by the deployment)
           environment.etc."greeting".text = config.resources.hello.outputs.stdout;
           environment.systemPackages = [ pkgs.hello ];

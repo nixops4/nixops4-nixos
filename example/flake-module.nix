@@ -21,7 +21,7 @@
       packages.vm =
         (inputs.nixpkgs.lib.nixosSystem {
           inherit system;
-          modules = [ ./target-vm.nix ];
+          modules = [ ./nixos-base.nix ];
         }).config.system.build.vm;
     };
 
@@ -39,7 +39,7 @@
     {
       imports = [
         ./deployment.nix
-        ./deployment-for-test.nix
+        ./deployment-test.nix
       ];
       _module.args.inputs = inputs;
     };

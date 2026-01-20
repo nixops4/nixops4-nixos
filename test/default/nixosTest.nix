@@ -113,7 +113,7 @@ testers.runNixOSTest (
           # Match the deployment's module imports to get the same dependencies
           imports = [
             (modulesPath + "/profiles/qemu-guest.nix")
-            # target-vm.nix imports qemu-vm.nix for boot/filesystem config needed by
+            # nixos-base.nix imports qemu-vm.nix for boot/filesystem config needed by
             # manual deployments. We must match it here so extraDependencies covers
             # its build inputs (kmod, etc.). NixOS test framework also imports qemu-vm.nix,
             # so this is a no-op for the test VM itself, but ensures nodes.target's
@@ -121,7 +121,7 @@ testers.runNixOSTest (
             (modulesPath + "/virtualisation/qemu-vm.nix")
           ];
 
-          # Must match target-vm.nix to get the same boot/kernel derivation hashes
+          # Must match nixos-base.nix to get the same boot/kernel derivation hashes
           virtualisation.useBootLoader = true;
 
           services.openssh.enable = true;
@@ -171,13 +171,13 @@ testers.runNixOSTest (
             }};
           }}
           """
-        deployer.succeed(f"""cat > work/generated.nix <<"_EOF_"\n{generated_config}\n_EOF_\n""")
+        deployer.succeed(f"""cat > work/deployment-test-generated.nix <<"_EOF_"\n{generated_config}\n_EOF_\n""")
         deployer.succeed("""
           cp ~/.ssh/id_rsa.pub work/deployer.pub
-          cat -n work/generated.nix 1>&2;
+          cat -n work/deployment-test-generated.nix 1>&2;
           echo {} > work/extra-deployment-config.nix
-          # Fail early if we made a syntax mistake in generated.nix. (following commands may be slow)
-          nix-instantiate work/generated.nix --eval --parse >/dev/null
+          # Fail early if we made a syntax mistake in deployment-test-generated.nix. (following commands may be slow)
+          nix-instantiate work/deployment-test-generated.nix --eval --parse >/dev/null
         """)
 
       with subtest("override the lock"):

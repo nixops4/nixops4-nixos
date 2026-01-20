@@ -1,11 +1,8 @@
-# Target VM NixOS configuration.
+# Base NixOS configuration for the deployment target.
 #
-# This module defines the NixOS system that can be:
-# 1. Deployed to via nixops4 (imported in deployment.nix)
-# 2. Run standalone as a QEMU VM for testing
-#
-# Run the VM with:
-#   nix run .#vm
+# This module is:
+# - Imported by deployment.nix for the deployed NixOS configuration
+# - Used by .#packages.vm for standalone VM testing
 {
   lib,
   modulesPath,
