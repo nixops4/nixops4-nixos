@@ -34,10 +34,10 @@ Start the VM (in a separate terminal):
 nix run '.#vm'
 ```
 
-Get the VM's host key and update `deployment.nix`:
+Get the VM's host key, add it to known_hosts, and update `deployment.nix`:
 
 ```bash
-ssh-keyscan -t ed25519 -p 2222 127.0.0.1
+ssh-keyscan -t ed25519 -p 2222 127.0.0.1 | tee -a ~/.ssh/known_hosts
 # Copy the ssh-ed25519 key to deployment.nix: ssh.hostPublicKey = "..."
 ```
 
