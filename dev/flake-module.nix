@@ -2,8 +2,17 @@
 {
   imports = [
     inputs.git-hooks-nix.flakeModule
+    inputs.hercules-ci-effects.flakeModule
   ];
-  flake.herculesCI.ciSystems = [ "x86_64-linux" ];
+  herculesCI.ciSystems = [ "x86_64-linux" ];
+  hercules-ci.flake-update = {
+    enable = true;
+    baseMerge.enable = true;
+    when = {
+      hour = [ 8 ];
+      dayOfMonth = [ 3 ];
+    };
+  };
   perSystem =
     {
       config,
