@@ -25,22 +25,24 @@
         }).config.system.build.vm;
     };
 
-  nixops4Deployments.default =
-    { ... }:
+  nixops4 =
+    { withResourceProviderSystem, ... }:
     {
-      imports = [
-        ./deployment.nix
-      ];
-      _module.args.inputs = inputs;
-    };
-  # Used by the integration test
-  nixops4Deployments.test =
-    { ... }:
-    {
-      imports = [
-        ./deployment.nix
-        ./deployment-test.nix
-      ];
-      _module.args.inputs = inputs;
+      members.default = {
+        _module.args.inputs = inputs;
+        _module.args.withResourceProviderSystem = withResourceProviderSystem;
+        imports = [
+          ./deployment.nix
+        ];
+      };
+      # Used by the integration test
+      members.test = {
+        _module.args.inputs = inputs;
+        _module.args.withResourceProviderSystem = withResourceProviderSystem;
+        imports = [
+          ./deployment.nix
+          ./deployment-test.nix
+        ];
+      };
     };
 }

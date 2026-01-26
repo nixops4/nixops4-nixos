@@ -1,15 +1,16 @@
 # NixOps4 deployment configuration.
 #
-# This module defines the deployment resources and is loaded by:
-# - nixops4Deployments.default (for manual deployment via `nixops4 apply default`)
-# - nixops4Deployments.test (for integration testing, with deployment-test.nix)
+# This module defines the deployment components and is loaded by:
+# - nixops4.members.default (for manual deployment via `nixops4 apply default`)
+# - nixops4.members.test (for integration testing, with deployment-test.nix)
 #
-# The NixOS configuration (resources.nixos.nixos.module) imports nixos-base.nix,
+# The NixOS configuration (members.nixos.nixos.module) imports nixos-base.nix,
 # which provides the base system configuration.
 {
   config,
   inputs,
   lib,
+  members,
   providers,
   withResourceProviderSystem,
   ...
@@ -30,7 +31,7 @@ in
   };
   config = {
     providers.local = inputs.nixops4.modules.nixops4Provider.local;
-    resources.hello = {
+    members.hello = {
       type = providers.local.exec;
       inputs = {
         executable = withResourceProviderSystem ({ pkgs, ... }: lib.getExe pkgs.hello);
@@ -40,10 +41,10 @@ in
         ];
       };
     };
-    resources.nixos = {
+    members.nixos = {
       type = providers.local.exec;
       imports = [
-        inputs.nixops4-nixos.modules.nixops4Resource.nixos
+        inputs.nixops4-nixos.modules.nixops4Component.nixos
       ];
 
       nixpkgs = inputs.nixpkgs;
@@ -54,7 +55,7 @@ in
 
           # Deployment-specific configuration (not in nixos-base.nix so the
           # integration test can verify these are installed by the deployment)
-          environment.etc."greeting".text = config.resources.hello.outputs.stdout;
+          environment.etc."greeting".text = members.hello.outputs.stdout;
           environment.systemPackages = [ pkgs.hello ];
         };
 

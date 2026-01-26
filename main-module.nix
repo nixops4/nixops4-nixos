@@ -6,7 +6,7 @@
 }:
 {
   flake.modules = {
-    nixops4Resource = {
+    nixops4Component = {
       nixos = flake-parts-lib.importApply ./modules/nixops4Resource/nixos.nix {
         inherit self withSystem;
       };
