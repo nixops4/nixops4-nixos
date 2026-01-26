@@ -29,13 +29,13 @@
       };
       devShells.default = pkgs.mkShellNoCC {
         nativeBuildInputs = [
-          pkgs.nixfmt-rfc-style
+          pkgs.nixfmt
           inputs'.nixops4.packages.default
         ];
         shellHook = ''
           ${config.pre-commit.settings.shellHook}
         '';
       };
-      pre-commit.settings.hooks.nixfmt-rfc-style.enable = true;
+      pre-commit.settings.hooks.nixfmt.enable = true;
     };
 }
