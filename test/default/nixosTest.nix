@@ -163,8 +163,8 @@ testers.runNixOSTest (
         generated_config = f"""
           {{ lib, ... }}: {{
             imports = [ ./extra-deployment-config.nix ];
-            resources.nixos.ssh.hostPublicKey = lib.mkForce "{host_public_key}";
-            resources.nixos.nixos.module = {{
+            members.nixos.ssh.hostPublicKey = lib.mkForce "{host_public_key}";
+            members.nixos.nixos.module = {{
               imports = [
                 (lib.modules.importJSON ./target-network.json)
               ];
@@ -232,7 +232,7 @@ testers.runNixOSTest (
       with subtest("nixops4 apply as user"):
         extra_config = """
           { lib, ... }: {
-            resources.nixos.ssh.user = "bossmang";
+            members.nixos.ssh.user = "bossmang";
           }
           """
         deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
@@ -249,7 +249,7 @@ testers.runNixOSTest (
           with subtest("configure deployment to deny root login on target"):
             extra_config = """
               { lib, ... }: {
-                resources.nixos.nixos.module.services.openssh.settings.PermitRootLogin = lib.mkForce "no";
+                members.nixos.nixos.module.services.openssh.settings.PermitRootLogin = lib.mkForce "no";
               }
               """
             deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
@@ -349,8 +349,8 @@ testers.runNixOSTest (
         with subtest("configure deployment to use ambient user"):
           extra_config = """
             { lib, ... }: {
-              resources.nixos.nixos.module.services.openssh.settings.PermitRootLogin = lib.mkForce "no";
-              resources.nixos.ssh.user = null;
+              members.nixos.nixos.module.services.openssh.settings.PermitRootLogin = lib.mkForce "no";
+              members.nixos.ssh.user = null;
             }
             """
           deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")

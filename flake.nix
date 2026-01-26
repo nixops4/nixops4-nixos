@@ -36,7 +36,7 @@
           partitionedAttrs.checks = "dev";
           partitionedAttrs.herculesCI = "dev";
           partitionedAttrs.packages = "example";
-          partitionedAttrs.nixops4Deployments = "example";
+          partitionedAttrs.nixops4 = "example";
         })
         modules
         packages
@@ -45,7 +45,7 @@
         /**
           Example configurations used in integration tests.
         */
-        nixops4Deployments
+        nixops4
         /**
           Continuous integration settings
         */

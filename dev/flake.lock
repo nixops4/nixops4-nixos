@@ -464,11 +464,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1768328591,
-        "narHash": "sha256-ZWCNGl2O1dGTtXvHj2H8G8RmFqatTmNmSwmut3ZutHI=",
+        "lastModified": 1769393115,
+        "narHash": "sha256-ZpjJXHLGkhOblAo6TvAZwYCqWt3exaPP5lOXK1MawvY=",
         "owner": "nixops4",
         "repo": "nixops4",
-        "rev": "c52ff5fcbbf64aca360ab533ebf518dabdbc1789",
+        "rev": "05c52d3a1ca03a18fa61a6767563cb22a4969d92",
         "type": "github"
       },
       "original": {

@@ -1,6 +1,6 @@
 # Test-specific deployment configuration.
 #
-# This module is loaded by nixops4Deployments.test (alongside deployment.nix).
+# This module is loaded by nixops4.members.test (alongside deployment.nix).
 # It configures the deployment for the integration test environment:
 # - Sets hostPort/hostName for the test network
 # - Adds nixos-test-base.nix to the NixOS configuration, which replicates the
@@ -15,7 +15,7 @@
     ./deployment-test-generated.nix
   ];
 
-  resources.nixos.nixos.module =
+  members.nixos.nixos.module =
     { modulesPath, ... }:
     {
       imports = [
