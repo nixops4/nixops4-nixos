@@ -8,9 +8,14 @@
   hercules-ci.flake-update = {
     enable = true;
     baseMerge.enable = true;
+    autoMergeMethod = "merge";
     when = {
       hour = [ 8 ];
       dayOfMonth = [ 3 ];
+    };
+    flakes = {
+      "." = { };
+      "dev" = { };
     };
   };
   perSystem =
