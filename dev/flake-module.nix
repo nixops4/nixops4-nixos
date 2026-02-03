@@ -12,6 +12,10 @@
       hour = [ 8 ];
       dayOfMonth = [ 3 ];
     };
+    flakes = {
+      "." = { };
+      "dev" = { };
+    };
   };
   perSystem =
     {
