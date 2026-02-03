@@ -5,6 +5,7 @@
     flake-parts.url = "github:hercules-ci/flake-parts";
     nixops4-nixos.url = "github:nixops4/nixops4-nixos";
     nixops4-nixos.inputs.flake-parts.follows = "flake-parts";
+    nixops4-nixos.inputs.nixpkgs.follows = "nixpkgs";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nixops4.url = "github:nixops4/nixops4";
     nixops4.inputs.nixpkgs.follows = "nixpkgs";
