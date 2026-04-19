@@ -10,6 +10,9 @@
       nixos = flake-parts-lib.importApply ./modules/nixops4Resource/nixos.nix {
         inherit self withSystem;
       };
+      darwin = flake-parts-lib.importApply ./modules/nixops4Resource/nixos.nix {
+        inherit self withSystem;
+      };
     };
     nixosTest = {
       static = ./modules/nixosTest/static.nix;

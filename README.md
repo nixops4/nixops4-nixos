@@ -1,6 +1,6 @@
-# `nixops4-nixos`
+# `nixops4-local`
 
-This repository provides a [NixOps4] integration for deploying NixOS configurations to existing NixOS hosts.
+This repository provides a [NixOps4] integration for deploying NixOS or Nix-Darwin configurations to existing NixOS/Darwin hosts.
 
 > [!WARNING]
 > This is pre-release software. Features and functionality are subject to change.
@@ -10,7 +10,7 @@ This repository provides a [NixOps4] integration for deploying NixOS configurati
 
 ## Test Drive
 
-Try deploying to a local QEMU VM:
+Try deploying to a local NixOS QEMU VM:
 
 Initialize from template:
 
