@@ -3,6 +3,7 @@ thisFlake@{ self, withSystem }:
   config,
   lib,
   resourceProviderSystem,
+  providers,
   ...
 }:
 let
@@ -36,6 +37,25 @@ in
       default = "";
     };
 
+    state.enable = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = ''
+        Whether to create a <literal>local.memo</literal> sibling resource
+        (<literal>members.stateVersion</literal>) that remembers the NixOS
+        <option>system.stateVersion</option> across deployments.
+
+        This prevents accidental <literal>stateVersion</literal> drift when
+        regenerating the deployment expression for an existing machine — the
+        memo resource retains the value that was recorded at first deploy and
+        makes it available as <literal>members.stateVersion.outputs.value</literal>.
+
+        Disable this if you manage <option>system.stateVersion</option> explicitly
+        in your NixOS configuration or if your state provider does not support
+        <literal>local.memo</literal>.
+      '';
+    };
+
     copy.substituteOnDestination = mkOption {
       type = types.bool;
       default = true;
@@ -64,45 +84,52 @@ in
     };
   };
 
-  config.members.apply = {
-    # ConnectionAttempts: set a limit to avoid hanging indefinitely.
-    # ConnectTimeout: TCP initiation may go unnoticed until host + network are up, or be dropped, so we need to use a timeout to avoid hanging indefinitely.
-    # KbdInteractiveAuthentication: see PasswordAuthentication above
-    # PasswordAuthentication: disallow password entry, because stdin is not connected. May hang indefinitely.
-    # StrictHostKeyChecking: disallow unknown hosts, trust-on-first-use is undue trust, and first use happens often in a team context. This behavior could be made optional when this is a stateful resource that can remember the host key, but until then, users will have to manually add the host key to the expression.
-    # UserKnownHostsFile: provide the configured host key. We shouldn't rely on the user's known_hosts file, especially in a team context.
-    sshOptions = [
-      "-o"
-      "ConnectTimeout=10"
-      "-o"
-      "ConnectionAttempts=12"
-      "-o"
-      "KbdInteractiveAuthentication=no"
-      "-o"
-      "PasswordAuthentication=no"
-      "-o"
-      "StrictHostKeyChecking=yes"
-      "-o"
-      "UserKnownHostsFile=${
-        # FIXME: when misconfigured, and this contains a private key, we leak it to the store
-        builtins.toFile "known_hosts" ''
-          ${config.ssh.host} ${config.ssh.hostPublicKey}
-        ''
-      }"
-    ]
-    ++ lib.optionals (config.ssh.opts != "") (lib.splitString " " config.ssh.opts);
+  config.members.apply =
+    lib.optionalAttrs config.state.enable {
+      stateVersion = {
+        type = providers.local.memo;
+        inputs.value = config._nixosConfig.config.system.stateVersion;
+      };
+    }
+    // {
+      # ConnectionAttempts: set a limit to avoid hanging indefinitely.
+      # ConnectTimeout: TCP initiation may go unnoticed until host + network are up, or be dropped, so we need to use a timeout to avoid hanging indefinitely.
+      # KbdInteractiveAuthentication: see PasswordAuthentication above
+      # PasswordAuthentication: disallow password entry, because stdin is not connected. May hang indefinitely.
+      # StrictHostKeyChecking: disallow unknown hosts, trust-on-first-use is undue trust, and first use happens often in a team context. This behavior could be made optional when this is a stateful resource that can remember the host key, but until then, users will have to manually add the host key to the expression.
+      # UserKnownHostsFile: provide the configured host key. We shouldn't rely on the user's known_hosts file, especially in a team context.
+      sshOptions = [
+        "-o"
+        "ConnectTimeout=10"
+        "-o"
+        "ConnectionAttempts=12"
+        "-o"
+        "KbdInteractiveAuthentication=no"
+        "-o"
+        "PasswordAuthentication=no"
+        "-o"
+        "StrictHostKeyChecking=yes"
+        "-o"
+        "UserKnownHostsFile=${
+          # FIXME: when misconfigured, and this contains a private key, we leak it to the store
+          builtins.toFile "known_hosts" ''
+            ${config.ssh.host} ${config.ssh.hostPublicKey}
+          ''
+        }"
+      ]
+      ++ lib.optionals (config.ssh.opts != "") (lib.splitString " " config.ssh.opts);
 
-    host = (lib.optionalString (config.ssh.user != null) "${config.ssh.user}@") + config.ssh.host;
+      host = (lib.optionalString (config.ssh.user != null) "${config.ssh.user}@") + config.ssh.host;
 
-    # Copies the toplevel closure to the target host before activating.
-    copyOptions = lib.optionalAttrs config.copy.substituteOnDestination {
-      substituteOnDestination = true;
+      # Copies the toplevel closure to the target host before activating.
+      copyOptions = lib.optionalAttrs config.copy.substituteOnDestination {
+        substituteOnDestination = true;
+      };
+
+      # Use sudo if configured.
+      sudo = config.sudo.enable;
+
+      # The toplevel derivation to deploy.
+      toplevel = config._toplevel;
     };
-
-    # Use sudo if configured.
-    sudo = config.sudo.enable;
-
-    # The toplevel derivation to deploy.
-    toplevel = config._toplevel;
-  };
 }
