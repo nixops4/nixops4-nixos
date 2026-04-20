@@ -64,31 +64,45 @@ in
     };
   };
 
-  config = {
-    inputs = {
-      executable = "${thisFlake.withSystem resourceProviderSystem ({ pkgs, ... }: lib.getExe pkgs.bash)}";
-      args = [
-        "-c"
-        # ConnectionAttempts: set a limit to avoid hanging indefinitely.
-        # ConnectTimeout: TCP initiation may go unnoticed until host + network are up, or be dropped, so we need to use a timeout to avoid hanging indefinitely.
-        # KbdInteractiveAuthentication: see PasswordAuthentication above
-        # PasswordAuthentication: disallow password entry, because stdin is not connected. May hang indefinitely.
-        # StrictHostKeyChecking: disallow unknown hosts, trust-on-first-use is undue trust, and first use happens often in a team context. This behavior could be made optional when this is a stateful resource that can remember the host key, but until then, users will have to manually add the host key to the expression.
-        # UserKnownHostsFile: provide the configured host key. We shouldn't rely on the user's known_hosts file, especially in a team context.
+  config.members.apply = {
+    # ConnectionAttempts: set a limit to avoid hanging indefinitely.
+    # ConnectTimeout: TCP initiation may go unnoticed until host + network are up, or be dropped, so we need to use a timeout to avoid hanging indefinitely.
+    # KbdInteractiveAuthentication: see PasswordAuthentication above
+    # PasswordAuthentication: disallow password entry, because stdin is not connected. May hang indefinitely.
+    # StrictHostKeyChecking: disallow unknown hosts, trust-on-first-use is undue trust, and first use happens often in a team context. This behavior could be made optional when this is a stateful resource that can remember the host key, but until then, users will have to manually add the host key to the expression.
+    # UserKnownHostsFile: provide the configured host key. We shouldn't rely on the user's known_hosts file, especially in a team context.
+    sshOptions = [
+      "-o"
+      "ConnectTimeout=10"
+      "-o"
+      "ConnectionAttempts=12"
+      "-o"
+      "KbdInteractiveAuthentication=no"
+      "-o"
+      "PasswordAuthentication=no"
+      "-o"
+      "StrictHostKeyChecking=yes"
+      "-o"
+      "UserKnownHostsFile=${
+        # FIXME: when misconfigured, and this contains a private key, we leak it to the store
+        builtins.toFile "known_hosts" ''
+          ${config.ssh.host} ${config.ssh.hostPublicKey}
         ''
-          set -euo pipefail
-          export NIX_SSHOPTS="-o ConnectTimeout=10 -o ConnectionAttempts=12 -o KbdInteractiveAuthentication=no -o PasswordAuthentication=no -o StrictHostKeyChecking=yes -o UserKnownHostsFile=${
-            # FIXME: when misconfigured, and this contains a private key, we leak it to the store
-            builtins.toFile "known_hosts" ''
-              ${config.ssh.host} ${config.ssh.hostPublicKey}
-            ''
-          } "${lib.strings.escapeShellArg "${config.ssh.opts}"}
-          nix copy --to "ssh-ng://$0" "$1" --no-check-sigs --extra-experimental-features nix-command${lib.optionalString config.copy.substituteOnDestination " --substitute-on-destination"}
-          ssh $NIX_SSHOPTS "$0" "${lib.optionalString config.sudo.enable "sudo "}$1/bin/apply switch"
-        ''
-        (lib.optionalString (config.ssh.user != null) "${config.ssh.user}@" + config.ssh.host)
-        config._toplevel
-      ];
+      }"
+    ]
+    ++ lib.optionals (config.ssh.opts != "") (lib.splitString " " config.ssh.opts);
+
+    host = (lib.optionalString (config.ssh.user != null) "${config.ssh.user}@") + config.ssh.host;
+
+    # Copies the toplevel closure to the target host before activating.
+    copyOptions = lib.optionalAttrs config.copy.substituteOnDestination {
+      substituteOnDestination = true;
     };
+
+    # Use sudo if configured.
+    sudo = config.sudo.enable;
+
+    # The toplevel derivation to deploy.
+    toplevel = config._toplevel;
   };
 }
