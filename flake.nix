@@ -1,9 +1,9 @@
 {
-  description = "NixOS integration for NixOps4";
+  description = "NixOpus: various integrations for NixOps4";
 
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
-    nixops4-nixos.follows = ""; # self
+    nixopus.follows = ""; # self
     /**
       Provides `bash` and `ssh` client for the deployment script.
     */
@@ -54,7 +54,7 @@
 
       templates.default = {
         path = ./example;
-        description = "NixOps4-NixOS deployment example";
+        description = "NixOps4 / NixOS deployment example";
       };
     };
 }

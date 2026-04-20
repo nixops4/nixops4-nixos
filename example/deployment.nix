@@ -44,7 +44,7 @@ in
     members.nixos = {
       type = providers.local.exec;
       imports = [
-        inputs.nixops4-nixos.modules.nixops4Component.nixos
+        inputs.nixopus.modules.nixops4Component.nixos
       ];
 
       nixpkgs = inputs.nixpkgs;

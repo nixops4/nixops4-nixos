@@ -1,6 +1,11 @@
-# `nixops4-nixos`
 
-This repository provides a [NixOps4] integration for deploying NixOS configurations to existing NixOS hosts.
+<p align="center">
+  <img src="logo.svg" alt="NixOpus logo" width="300">
+</p>
+
+# NixOpus
+
+This repository provides various [NixOps4] integrations.
 
 > [!WARNING]
 > This is pre-release software. Features and functionality are subject to change.
@@ -8,7 +13,9 @@ This repository provides a [NixOps4] integration for deploying NixOS configurati
 > [!NOTE]
 > This is not representative of the final product, which should include convenience options for defining hosts without manually specifying resource definitions.
 
-## Test Drive
+## NixOS Test Drive
+
+<!-- our first integration -->
 
 Try deploying to a local QEMU VM:
 
@@ -16,7 +23,7 @@ Initialize from template:
 
 ```bash
 mkdir my-deployment && cd my-deployment
-nix flake init -t github:nixops4/nixops4-nixos
+nix flake init -t github:nixops4/nixopus
 git init && git add -A
 ```
 

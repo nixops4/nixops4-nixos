@@ -20,9 +20,9 @@ testers.runNixOSTest (
     );
   in
   {
-    name = "nixops4-nixos";
+    name = "nixopus";
     imports = [
-      inputs.nixops4-nixos.modules.nixosTest.static
+      inputs.nixopus.modules.nixosTest.static
     ];
 
     nodes = {
@@ -74,7 +74,7 @@ testers.runNixOSTest (
             "${inputs.flake-parts}"
             "${inputs.flake-parts.inputs.nixpkgs-lib}"
             "${inputs.nixops4}"
-            "${inputs.nixops4-nixos}"
+            "${inputs.nixopus}"
             "${inputs.nixpkgs}"
             pkgs.stdenv
             pkgs.stdenvNoCC
@@ -142,7 +142,7 @@ testers.runNixOSTest (
           mkdir work
           cd work
           nix flake init --extra-experimental-features 'flakes nix-command' \
-            -t ${inputs.nixops4-nixos}#default
+            -t ${inputs.nixopus}#default
           git init && git add -A
         """)
 
@@ -192,7 +192,7 @@ testers.runNixOSTest (
             nix flake lock --extra-experimental-features 'flakes nix-command' \
               --offline -v \
               --override-input flake-parts ${inputs.flake-parts} \
-              --override-input nixops4-nixos ${inputs.nixops4-nixos} \
+              --override-input nixopus ${inputs.nixopus} \
               --override-input nixops4 ${nixops4-flake-in-a-bottle} \
               --override-input nixpkgs ${inputs.nixpkgs} \
               ;

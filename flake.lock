@@ -52,7 +52,7 @@
     "root": {
       "inputs": {
         "flake-parts": "flake-parts",
-        "nixops4-nixos": [],
+        "nixopus": [],
         "nixpkgs": "nixpkgs"
       }
     }
