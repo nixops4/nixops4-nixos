@@ -88,6 +88,8 @@ testers.runNixOSTest (
             nodes.target.system.path.inputDerivation
             nodes.target.system.build.bootStage1.inputDerivation
             nodes.target.system.build.bootStage2.inputDerivation
+            nodes.target.system.build.initialRamdisk.inputDerivation
+            nodes.target.system.build.modulesClosure.inputDerivation
           ]
           # /etc file sources - deployment may generate different config files
           ++ lib.concatLists (
