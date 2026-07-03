@@ -33,6 +33,7 @@ testers.runNixOSTest (
             inputs.nixops4.packages.${vmSystem}.default
             pkgs.git
           ];
+          users.users.alice.isNormalUser = true;
           # Memory use is expected to be dominated by the NixOS evaluation, which
           # happens on the deployer.
           virtualisation.memorySize = 4096;
@@ -129,6 +130,11 @@ testers.runNixOSTest (
     };
 
     testScript = ''
+      import shlex
+
+      def user_succeed(command):
+          return deployer.succeed(f"su - alice -c {shlex.quote(command)}")
+
       start_all()
       target.wait_for_unit("multi-user.target")
       deployer.wait_for_unit("multi-user.target")
@@ -138,7 +144,7 @@ testers.runNixOSTest (
       # deployer.wait_for_unit("network-online.target")
 
       with subtest("nix flake init"):
-        deployer.succeed("""
+        user_succeed("""
           mkdir work
           cd work
           nix flake init --extra-experimental-features 'flakes nix-command' \
@@ -147,17 +153,17 @@ testers.runNixOSTest (
         """)
 
       with subtest("configure the deployment"):
-        deployer.copy_from_host("${targetNetworkJSON}", "/root/target-network.json")
-        deployer.succeed("""
+        deployer.copy_from_host("${targetNetworkJSON}", "/home/alice/target-network.json")
+        user_succeed("""
           (
             cd work
             set -x
             mkdir -p ~/.ssh
             ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
-            mv /root/target-network.json target-network.json
+            mv ~/target-network.json target-network.json
           )
         """)
-        deployer_public_key = deployer.succeed("cat ~/.ssh/id_rsa.pub").strip()
+        deployer_public_key = user_succeed("cat ~/.ssh/id_rsa.pub").strip()
         target.succeed("mkdir -p /root/.ssh && echo '{}' >> /root/.ssh/authorized_keys".format(deployer_public_key))
         host_public_key = target.succeed("ssh-keyscan target | grep -v '^#' | cut -f 2- -d ' ' | head -n 1")
         generated_config = f"""
@@ -171,8 +177,8 @@ testers.runNixOSTest (
             }};
           }}
           """
-        deployer.succeed(f"""cat > work/deployment-test-generated.nix <<"_EOF_"\n{generated_config}\n_EOF_\n""")
-        deployer.succeed("""
+        user_succeed(f"""cat > work/deployment-test-generated.nix <<"_EOF_"\n{generated_config}\n_EOF_\n""")
+        user_succeed("""
           cp ~/.ssh/id_rsa.pub work/deployer.pub
           cat -n work/deployment-test-generated.nix 1>&2;
           echo {} > work/extra-deployment-config.nix
@@ -181,7 +187,7 @@ testers.runNixOSTest (
         """)
 
       with subtest("override the lock"):
-        deployer.succeed("""
+        user_succeed("""
           (
             cd work
             # Add dynamically generated files to git so they're included in the store path
@@ -206,7 +212,7 @@ testers.runNixOSTest (
         target.fail("hello")
 
       with subtest("nixops4 apply"):
-        deployer.succeed("""
+        user_succeed("""
           (
             cd work
             set -x
@@ -235,8 +241,8 @@ testers.runNixOSTest (
             members.nixos.ssh.user = "bossmang";
           }
           """
-        deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
-        deployer.succeed("""
+        user_succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
+        user_succeed("""
           (
             cd work
             set -x
@@ -252,9 +258,9 @@ testers.runNixOSTest (
                 members.nixos.nixos.module.services.openssh.settings.PermitRootLogin = lib.mkForce "no";
               }
               """
-            deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
+            user_succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
           with subtest("nixops4 apply"):
-            deployer.succeed("""
+            user_succeed("""
               (
                 cd work
                 set -x
@@ -262,7 +268,7 @@ testers.runNixOSTest (
               )
             """)
           with subtest("check assumption: root is denied"):
-            deployer.succeed(f"""
+            user_succeed(f"""
               (
                 set -x
                 echo "target {host_public_key}" > target-host-key
@@ -278,7 +284,7 @@ testers.runNixOSTest (
                       -o StrictHostKeyChecking=yes \
                       -v \
                       2>&1 \
-                    target \
+                    root@target \
                     true
                   r=$?
                   echo "ssh exit status: $r" 1>&2
@@ -289,7 +295,7 @@ testers.runNixOSTest (
               )
             """)
           with subtest("configure user in ~/.ssh/config"):
-            deployer.succeed("""
+            user_succeed("""
               mkdir -p ~/.ssh
               (
                 echo 'Host target'
@@ -298,7 +304,7 @@ testers.runNixOSTest (
               cat -n ~/.ssh/config
             """)
           with subtest("check assumption: user is allowed"):
-            deployer.succeed(f"""
+            user_succeed(f"""
               (
                 set -x
                 echo "target {host_public_key}" > target-host-key
@@ -315,12 +321,12 @@ testers.runNixOSTest (
               )
             """)
           with subtest("clean up"):
-            deployer.succeed("""
+            user_succeed("""
               rm ~/.ssh/config
             """)
 
         with subtest("check error propagation through resource and nixops4"):
-          deployer.succeed("""
+          user_succeed("""
             (
               cd work
               set -x
@@ -337,7 +343,7 @@ testers.runNixOSTest (
           """)
 
         with subtest("configure user in ~/.ssh/config"):
-          deployer.succeed("""
+          user_succeed("""
             mkdir -p ~/.ssh
             (
               echo 'Host target'
@@ -353,10 +359,10 @@ testers.runNixOSTest (
               members.nixos.ssh.user = null;
             }
             """
-          deployer.succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
+          user_succeed(f"""cat > work/extra-deployment-config.nix <<"_EOF_"\n{extra_config}\n_EOF_\n""")
 
         with subtest("can deploy with ambient user setting"):
-          deployer.succeed("""
+          user_succeed("""
             (
               cd work
               set -x
